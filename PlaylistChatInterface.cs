@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using BepInEx.Logging;
-using Mono.Cecil;
 using UnityEngine;
 using ZeepkistClient;
 using ZeepkistNetworking;
@@ -378,6 +377,7 @@ public class PlaylistChatInterface
             message += "dinsert<br>";
             message += "remove<br>";
             message += "fremove<br>";
+            message += "create<br>";
             message += "wipe<br>";
             message += "erase<br>";
             message += "count<br>";
