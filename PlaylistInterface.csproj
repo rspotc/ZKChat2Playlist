@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
-    <AssemblyName>PlaylistInterface</AssemblyName>
+    <AssemblyName>Chat2Playlist</AssemblyName>
     <Description>Chat Tool for Playlist Creation</Description>
     <Version>1.0.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
