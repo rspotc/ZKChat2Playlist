@@ -12,6 +12,7 @@ Commands are initiated with "/playlist" or "/pl" followed by a function and then
 <li>"count" or "cnt" to get number of levels in playlist</li>
 <li>"backup" to force a backup of the playlist</li>
 <li>"shuffle" toggles whether shuffle is on or off for the playlist</li>
+<li>"list" lists available playlists showing 10 per page. Replace the playlist name argument with page number.</li>
 <li>"60"-"86400" integer number of seconds to set the round timer to for the playlist</li>
 </ul>
 

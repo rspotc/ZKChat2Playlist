@@ -50,7 +50,11 @@ public class Plugin : BaseUnityPlugin
     {
         private static void Prefix()
         {
-            playlistChat.backupChangedPlaylists();
+//            playlistChat.backupChangedPlaylists();
+            playlistChat.resetBackups();
         }
     }
 }
+
+//    <PackageReference Include="Zeepkist.GameLibs" Version="16.0.1392" />
+//    <PackageReference Include="ZeepSDK" Version="1.*" />
