@@ -12,21 +12,33 @@ public class PlaylistChatInterface
     private OnlineZeeplevel currentLevel;
     private DirectoryInfo playlistDir;
     private FileInfo[] playlistFiles;
-    private string lastUpdated = "";
+    private string lastUpdated;
+    private bool activeStatus;
+
     private static Color colorText = new Color32(0xF1, 0xE6, 0xD9, 0xFF);
     private static Color colorSuccess = new Color32(0x58, 0x7B, 0x4B, 0xFF);
     private static Color colorFailure = new Color32(0xA8, 0x3E, 0x48, 0xFF);
 
     public ManualLogSource Logger;
 
-    public PlaylistChatInterface()
+    public PlaylistChatInterface(string logName)
     {
-        Logger = BepInEx.Logging.Logger.CreateLogSource(nameof(PlaylistChatInterface));
+        Logger = BepInEx.Logging.Logger.CreateLogSource(logName);
         backupsSaved = new HashSet<string>();
+        setActive(false);
+        lastUpdated = "";
+    }
+
+    public void setActive(bool active)
+    {
+        Logger.LogDebug($"Setting setLevel to {active}");
+        activeStatus = active;
     }
 
     public void setLevel(LevelScriptableObject level)
     {
+        if (!activeStatus || !(ZeepkistClient.ZeepkistNetwork.IsConnected)) return;
+
         currentLevel = new OnlineZeeplevel()
         {
             Name = level.Name,
