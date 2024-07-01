@@ -1,5 +1,8 @@
 ﻿using BepInEx;
+using BepInEx.Logging;
 using HarmonyLib;
+using TMPro;
+using UnityEngine;
 
 namespace Zeepkist;
 
@@ -46,7 +49,7 @@ public class Plugin : BaseUnityPlugin
     }
 
     [HarmonyPatch(typeof(PhotonZeepkist), "OnDisconnectedFromGame")]
-    public class PauseMenuUI_OnQuit
+    public class PhotonZeepkist_OnDisconnectedFromGame
     {
         private static void Prefix()
         {
@@ -56,8 +59,20 @@ public class Plugin : BaseUnityPlugin
         }
     }
 
+    [HarmonyPatch(typeof(OnlineGameplayUI), "OnOpen")]
+    public class OnlineGameplayUI_Update
+    {
+        private static void Postfix(GameObject ___tooltips)
+        {
+            //ManualLogSource TempLog = BepInEx.Logging.Logger.CreateLogSource("TempLog");
+            GameObject commands = ___tooltips.transform.GetChild(0).gameObject;
+            TextMeshProUGUI commandsText = commands.GetComponent<TextMeshProUGUI>();
+            commandsText.text = playlistChat.addCommands(commandsText.text);
+        }
+    }
+
     [HarmonyPatch(typeof(PhotonZeepkist), "OnConnectedToGame")]
-    public class LobbyManager_GoToLobby
+    public class PhotonZeepkist_OnConnectedToGame
     {
         private static void Postfix()
         {

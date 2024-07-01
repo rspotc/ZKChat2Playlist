@@ -20,6 +20,25 @@ public class PlaylistChatInterface
     private static Color colorFailure = new Color32(0xA8, 0x3E, 0x48, 0xFF);
 
     public ManualLogSource Logger;
+    
+    public string addCommands(string currentCommands)
+    {
+        string commandsString = "\n\n\n<color=#FFDD00>/pl | /playlist</color>";
+        commandsString += "\n/pl create [playlist name] <color=#FF8800>-- Create a new empty playlist with the specified name.</color> <color=#407AFF>(aliases; new)</color>";
+        commandsString += "\n/pl insert [playlist name] <color=#FF8800>-- Add track to the specified playlist. Will not add if the track is already in the playlist.</color> <color=#407AFF>(aliases; add, in)</color>";
+        commandsString += "\n/pl dinsert [playlist name] <color=#FF8800>-- Add the current track to the specified playlist, with duplicates allowed.</color> <color=#407AFF>(aliases; dadd, din)</color>";
+        commandsString += "\n/pl remove [playlist name] <color=#FF8800>-- Remove one instance of the current track from the specified playlist.</color> <color=#407AFF>(aliases; rm, delete, del)</color>";
+        commandsString += "\n/pl fremove [playlist name] <color=#FF8800>-- Remove all instances (full remove) of the current track from the specified playlist.</color> <color=#407AFF>(aliases; frm, fdelete, fdel)</color>";
+        commandsString += "\n/pl wipe [playlist name] <color=#FF8800>-- Remove all tracks from the specified playlist, leaving an empty playlist.</color> <color=#407AFF>(aliases; clear, clr, empty)</color>";
+        commandsString += "\n/pl erase [playlist name] <color=#FF8800>-- Erase the specified playlist entirely.</color> <color=#407AFF>(aliases; drop)</color>";
+        commandsString += "\n/pl count [playlist name] <color=#FF8800>-- Count the number of tracks in the specified playlist.</color> <color=#407AFF>(aliases; cnt)</color>";
+        commandsString += "\n/pl backup [playlist name] <color=#FF8800>-- Force a backup of the specified playlist. Will auto backup before first edit of the playlist in and upon leaving each lobby.</color> <color=#407AFF>(aliases; bu)</color>";
+        commandsString += "\n/pl shuffle [playlist name] <color=#FF8800>-- Toggle the shuffle option for the specified playlist.</color> <color=#407AFF>(aliases; sh)</color>";
+        commandsString += "\n/pl list [page number] <color=#FF8800>-- List existing playlists, displaying 10 per page.</color>";
+        commandsString += "\n/pl [60-86400] [playlist name] <color=#FF8800>-- Set the lobby timer for the specified playlist to the provided number of seconds.</color>";
+
+        return currentCommands + commandsString;
+    }
 
     public PlaylistChatInterface(string logName)
     {
@@ -542,3 +561,42 @@ public class PlaylistChatInterface
             chatMessageReceived(zeepkistChatMessage);
     }
 }
+/*
+<color=#FFDD00>/skip | /fs | /skiplevel</color>
+/skip <color=#FF8800>-- skip to the next selected level in playlist</color>
+/skip random <color=#FF8800>-- skip to a random level</color>
+/skip next <color=#FF8800>-- skip to the exact next level in playlist</color>
+/skip prev <color=#FF8800>-- skip to the previous level in playlist</color>
+/skip restart <color=#FF8800>-- restarts current level. Alternatively:</color> /restart
+/skip [integer] <color=#FF8800>-- skip to specific level in playlist</color>
+
+
+<color=#FFDD00>/gs | /gamesettings</color>
+/gs photomode on
+/gs photomode off
+/gs photomode timed [seconds] <color=#FF8800>-- enables photomode after x seconds from start of level</color>
+/gs photomode enabledfinish <color=#FF8800>-- enables photomode for players who finished at least once</color>
+
+
+/resettime <color=#FF8800>-- resets round time</color>
+/settime [seconds] <color=#FF8800>-- sets round time to x seconds</color>
+
+<color=#FFDD00>/joinmessage</color>
+/joinmessage [color] [text] <color=#FF8800>-- sets and enables join message</color>
+/joinmessage on
+/joinmessage off
+/joinmessage test <color=#FF8800>-- tests the join message, shows it to you alone</color>
+
+
+<color=#FFDD00>/servermessage</color>
+/servermessage [color] [seconds] [text] <color=#FF8800>-- sets and enables join message, will show for x seconds</color>
+/servermessage remove
+<color=#407AFF><i>Accepted colors: red, orange, yellow, blue, green, pink, purple, black, white</i></color>
+
+
+<color=#FFDD00>/vs | /voteskip</color>
+/vs on <color=#FF8800>-- enables voteskip system</color>
+/vs off <color=#FF8800>-- disables voteskip system</color>
+/vs reset <color=#FF8800>-- resets vote count</color>
+/vs % [percentage] <color=#FF8800>-- sets vote threshold to percentage</color>
+*/
