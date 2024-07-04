@@ -5,6 +5,8 @@ using BepInEx.Logging;
 using UnityEngine;
 using ZeepkistClient;
 using ZeepkistNetworking;
+using ZeepSDK.ChatCommands;
+using ZeepSDK.Chat;
 
 public class PlaylistChatInterface
 {
@@ -18,30 +20,14 @@ public class PlaylistChatInterface
     private static Color colorText = new Color32(0xF1, 0xE6, 0xD9, 0xFF);
     private static Color colorSuccess = new Color32(0x58, 0x7B, 0x4B, 0xFF);
     private static Color colorFailure = new Color32(0xA8, 0x3E, 0x48, 0xFF);
+    private static ILocalChatCommandExtension playlistChatCommand = null;
 
     public ManualLogSource Logger;
     
-    public string addCommands(string currentCommands)
-    {
-        string commandsString = "\n\n\n<color=#FFDD00>/pl | /playlist</color>";
-        commandsString += "\n/pl create [playlist name] <color=#FF8800>-- Create a new empty playlist with the specified name.</color> <color=#407AFF>(aliases; new)</color>";
-        commandsString += "\n/pl insert [playlist name] <color=#FF8800>-- Add track to the specified playlist. Will not add if the track is already in the playlist.</color> <color=#407AFF>(aliases; add, in)</color>";
-        commandsString += "\n/pl dinsert [playlist name] <color=#FF8800>-- Add the current track to the specified playlist, with duplicates allowed.</color> <color=#407AFF>(aliases; dadd, din)</color>";
-        commandsString += "\n/pl remove [playlist name] <color=#FF8800>-- Remove one instance of the current track from the specified playlist.</color> <color=#407AFF>(aliases; rm, delete, del)</color>";
-        commandsString += "\n/pl fremove [playlist name] <color=#FF8800>-- Remove all instances (full remove) of the current track from the specified playlist.</color> <color=#407AFF>(aliases; frm, fdelete, fdel)</color>";
-        commandsString += "\n/pl wipe [playlist name] <color=#FF8800>-- Remove all tracks from the specified playlist, leaving an empty playlist.</color> <color=#407AFF>(aliases; clear, clr, empty)</color>";
-        commandsString += "\n/pl erase [playlist name] <color=#FF8800>-- Erase the specified playlist entirely.</color> <color=#407AFF>(aliases; drop)</color>";
-        commandsString += "\n/pl count [playlist name] <color=#FF8800>-- Count the number of tracks in the specified playlist.</color> <color=#407AFF>(aliases; cnt)</color>";
-        commandsString += "\n/pl backup [playlist name] <color=#FF8800>-- Force a backup of the specified playlist. Will auto backup before first edit of the playlist in and upon leaving each lobby.</color> <color=#407AFF>(aliases; bu)</color>";
-        commandsString += "\n/pl shuffle [playlist name] <color=#FF8800>-- Toggle the shuffle option for the specified playlist.</color> <color=#407AFF>(aliases; sh)</color>";
-        commandsString += "\n/pl list [page number] <color=#FF8800>-- List existing playlists, displaying 10 per page.</color>";
-        commandsString += "\n/pl [60-86400] [playlist name] <color=#FF8800>-- Set the lobby timer for the specified playlist to the provided number of seconds.</color>";
-
-        return currentCommands + commandsString;
-    }
-
     public PlaylistChatInterface(string logName)
     {
+        playlistChatCommand ??= setupChat();
+
         Logger = BepInEx.Logging.Logger.CreateLogSource(logName);
         backupsSaved = new HashSet<string>();
         setActive(false);
@@ -67,40 +53,24 @@ public class PlaylistChatInterface
         };
     }
 
-    public bool isPlaylistCommand(string message)
-    {
-        string[] tokens = message.Split(' ', 3);
-        if (tokens[0] == "/pl" || tokens[0] == "/playlist")
-        {
-            if (tokens.Length >= 2 && !(tokens[1] == "hlp" || tokens[1] == "help"))
-            {
-                // Update playlists because the user may have added one, or updated one through host controls
-                playlistDir = new DirectoryInfo(Directory.CreateDirectory(Path.Combine(PlayerManager.GetTargetFolder(), "Zeepkist", "Playlists")).FullName);
-                playlistFiles = playlistDir.GetFiles("*.zeeplist", SearchOption.TopDirectoryOnly);
-                Array.Sort(playlistFiles, (f1, f2) => { return f1.Name.CompareTo(f2.Name); });
-
-                executePlaylistCommand(tokens);
-            }
-            else
-            {
-                addNewChatMessage(getHelpMessage(tokens));
-            }
-
-            return true;
-        }
-        return false;
-    }
-
-//    public void backupChangedPlaylists()
     public void resetBackups()
     {
- //       Logger.LogInfo("Backing up all playlists that were modified through chat.");
- //       foreach (string playlistName in backupsSaved)
- //       {
- //           backupPlaylist(playlistName, false);
- //       }
         backupsSaved.Clear();
         lastUpdated = "";
+    }
+
+    public string addCommands(string currentCommands) { return currentCommands + "\n\n\n" + playlistChatCommand.repr(); }
+
+    private string isPlaylistCommand(string playlistName)
+    {
+        // Update playlists because the user may have added one, or updated one through host controls
+        playlistDir = new DirectoryInfo(Directory.CreateDirectory(Path.Combine(PlayerManager.GetTargetFolder(), "Zeepkist", "Playlists")).FullName);
+        playlistFiles = playlistDir.GetFiles("*.zeeplist", SearchOption.TopDirectoryOnly);
+        Array.Sort(playlistFiles, (f1, f2) => { return f1.Name.CompareTo(f2.Name); });
+
+        string resultName = lastUpdated;
+        if (playlistName != "") resultName = playlistName;
+        return resultName;
     }
 
     private bool checkLevelLoaded()
@@ -179,8 +149,21 @@ public class PlaylistChatInterface
         );
     }
 
+    private void addDuplicateLevelToExistingPlaylist(string playlistName)
+    {
+        addLevelToExistingPlaylist(playlistName, true);
+    }
+
+    private void addUniqueLevelToExistingPlaylist(string playlistName)
+    {
+        addLevelToExistingPlaylist(playlistName);
+    }
+
     private void addLevelToExistingPlaylist(string playlistName, bool duplicate = false)
     {
+        if (!checkLevelLoaded()) return;
+        playlistName = isPlaylistCommand(playlistName);
+
         int playlistFileIdx = checkPlaylistExists(playlistName);
         if (playlistFileIdx <= -1)
         {
@@ -204,8 +187,20 @@ public class PlaylistChatInterface
         displayLog($"Added \"{currentLevel.Name}\" to playlist \"{playlistName}\".", true);
     }
 
+    private void fullDeleteLevelFromExistingPlaylist(string playlistName)
+    {
+        deleteLevelFromExistingPlaylist(playlistName, true);
+    }
+    private void singleDeleteLevelFromExistingPlaylist(string playlistName)
+    {
+        deleteLevelFromExistingPlaylist(playlistName);
+    }
+
     private void deleteLevelFromExistingPlaylist(string playlistName, bool all = false)
     {
+        if (!checkLevelLoaded()) return;
+        playlistName = isPlaylistCommand(playlistName);
+
         int playlistFileIdx = checkPlaylistExists(playlistName);
         if (playlistFileIdx <= -1)
         {
@@ -243,6 +238,8 @@ public class PlaylistChatInterface
 
     private void createNewPlaylist(string playlistName)
     {
+        isPlaylistCommand(playlistName);
+
         int playlistFileIdx = checkPlaylistExists(playlistName, false);
         if (playlistFileIdx >= 0)
         {
@@ -263,6 +260,8 @@ public class PlaylistChatInterface
 
     private void wipePlaylist(string playlistName)
     {
+        playlistName = isPlaylistCommand(playlistName);
+
         int playlistFileIdx = checkPlaylistExists(playlistName);
         if (playlistFileIdx <= -1)
         {
@@ -281,6 +280,8 @@ public class PlaylistChatInterface
     
     private void deletePlaylist(string playlistName)
     {
+        playlistName = isPlaylistCommand(playlistName);
+
         int playlistFileIdx = checkPlaylistExists(playlistName);
         if (playlistFileIdx <= -1)
         {
@@ -296,17 +297,14 @@ public class PlaylistChatInterface
         playlistFiles[playlistFileIdx].Delete();
         lastUpdated = "";
         
-        /*
-        // Remove the backup status in case this playlist name is reused
-        backupsSaved.Remove(playlistName);
-        */
-
         Logger.LogInfo($"Deleted playlist named \"{playlistName}\".");
         displayLog($"Deleted playlist \"{playlistName}\".", true);
     }
 
     private void countLevelsInPlaylist(string playlistName)
     {
+        playlistName = isPlaylistCommand(playlistName);
+
         int playlistFileIdx = checkPlaylistExists(playlistName);
         if (playlistFileIdx <= -1)
         {
@@ -320,8 +318,10 @@ public class PlaylistChatInterface
         displayLog($"\"{playlistName}\" level count: {playlistJSON.amountOfLevels}.", true);
     }
 
-    private void backupPlaylist(string playlistName, bool report=true)
+    private void backupPlaylist(string playlistName)
     {
+        playlistName = isPlaylistCommand(playlistName);
+
         int playlistFileIdx = checkPlaylistExists(playlistName);
         if (playlistFileIdx <= -1)
         {
@@ -333,11 +333,13 @@ public class PlaylistChatInterface
         writePlaylist(playlistJSON, true);
 
         Logger.LogInfo($"Backed up playlist named \"{playlistName}\".");
-        if (report) displayLog($"\"{playlistName}\" backed up.", true);
+        displayLog($"\"{playlistName}\" backed up.", true);
     }
 
     private void toggleShuffle(string playlistName)
     {
+        playlistName = isPlaylistCommand(playlistName);
+
         int playlistFileIdx = checkPlaylistExists(playlistName);
         if (playlistFileIdx <= -1)
         {
@@ -353,7 +355,30 @@ public class PlaylistChatInterface
         displayLog($"\"{playlistName}\" shuffle {(playlistJSON.shufflePlaylist ? "en" : "dis")}abled.", true);
     }
 
-    private void changeRoundLength(string playlistName, int roundLength)
+    private void changeRoundLength(string tokensString)
+    {
+        string[] tokens = tokensString.Split(' ', 2);
+        string playlistName = isPlaylistCommand(tokens.Length == 2 ? tokens[1] : "");
+        int roundLength;
+        if (int.TryParse(tokens[0], out roundLength))
+        {
+            if (roundLength >= 60 && roundLength <= 86400)
+            {
+                changeRoundLengthOnPlaylist(playlistName, roundLength);
+            }
+            else
+            {
+                displayLog($"Round timer must be from 60 to 86400.", false);
+            }
+        }
+        else
+        {
+            Logger.LogInfo($"Unrecognized option \"{tokens[0]}\" with playlist command");
+            displayLog($"\"{tokens[0]}\" is not a playlist function.", false);
+        }
+    }
+
+    private void changeRoundLengthOnPlaylist(string playlistName, int roundLength)
     {
         int playlistFileIdx = checkPlaylistExists(playlistName);
         if (playlistFileIdx <= -1)
@@ -370,6 +395,7 @@ public class PlaylistChatInterface
         displayLog($"\"{playlistName}\" timer is {playlistJSON.roundLength}.", true);
     }
 
+    /*
     private string getHelpMessage(string[] tokens)
     {
         string message;
@@ -445,15 +471,15 @@ public class PlaylistChatInterface
         }
         return message;
     }
+    */
 
-    private void listPlaylists(string[] tokens)
+    private void listPlaylists(string pageNumStr)
     {
+        isPlaylistCommand("");
+        
         int pageNum = 1;
-        if (tokens.Length == 3)
-        {
-            if (!(int.TryParse(tokens[2], out pageNum))) {
-                pageNum = 1;
-            }
+        if (!(int.TryParse(pageNumStr, out pageNum))) {
+            pageNum = 1;
         }
 
         if ((pageNum - 1) * 10 >= playlistFiles.Length) pageNum = 1;
@@ -467,136 +493,25 @@ public class PlaylistChatInterface
             playlistIndex++;
         }
 
-        addNewChatMessage(playlistMessage);
+        ChatApi.AddLocalMessage($"<#F1E6D9><i>{playlistMessage}</i></color>");
     }
 
-    private void executePlaylistCommand(string[] tokens)
+    private ILocalChatCommandExtension setupChat()
     {
-        if (tokens[1] == "list")
-        {
-            listPlaylists(tokens);
-            return; 
-        }
+        ILocalChatCommandExtension chatCommand = new ILocalChatCommandExtension("/", "pl", "Set the lobby timer for the specified playlist to the provided number of seconds.", changeRoundLength, false, new string[] { "0-86400", "playlist name" });
+        chatCommand.addAlias("playlist");
+        chatCommand.registerSubcommand("create", "Create a new empty playlist with the specified name.", ["new"], createNewPlaylist, ["playlist name"]);
+        chatCommand.registerSubcommand("insert", "Add the current track to a specified playlist. Will not add if the track is already in the playlist.", ["add", "in"], addUniqueLevelToExistingPlaylist, ["playlist name"]);
+        chatCommand.registerSubcommand("dinsert", "Add the current track to a specified playlist, with duplicates allowed.", ["dadd", "din"], addDuplicateLevelToExistingPlaylist, ["playlist name"]);
+        chatCommand.registerSubcommand("remove", "Remove one instance of the current track from the specified playlist.", ["rm", "delete", "del"], singleDeleteLevelFromExistingPlaylist, ["playlist name"]);
+        chatCommand.registerSubcommand("fremove", "Remove all instances (full remove) of the current track from the specified playlist.", ["frm", "fdelete", "fdel"], fullDeleteLevelFromExistingPlaylist, ["playlist name"]);
+        chatCommand.registerSubcommand("wipe", "Remove all tracks from the specified playlist, leaving an empty playlist.", ["clear", "clr", "empty"], wipePlaylist, ["playlist name"]);
+        chatCommand.registerSubcommand("erase", "Erase the specified playlist entirely.", ["drop"], deletePlaylist, ["playlist name"]);
+        chatCommand.registerSubcommand("count", "Count the number of tracks in the specified playlist.", ["cnt"], countLevelsInPlaylist, ["playlist name"]);
+        chatCommand.registerSubcommand("backup", "Force a backup of the specified playlist. (Will auto backup before first edit of the playlist in and upon leaving each lobby.)", ["bu"], backupPlaylist, ["playlist name"]);
+        chatCommand.registerSubcommand("shuffle", "Toggle the shuffle option for the specified playlist.", ["sh"], toggleShuffle, ["playlist name"]);
+        chatCommand.registerSubcommand("list", "List existing playlists, displaying 10 per page.", [], listPlaylists, ["page number"]);
 
-        string playlistName = lastUpdated;
-        if (tokens.Length == 3 && tokens[2] != "") playlistName = tokens[2];
-
-        if (tokens[1] == "new" || tokens[1] == "create")
-        {
-            if (playlistName == "")
-            {
-                displayLog("Invalid Playlist Name.", false);
-                return;
-            }
-            createNewPlaylist(playlistName);
-        }
-        else if (tokens[1] == "add" || tokens[1] == "insert" || tokens[1] == "in")
-        {
-            if (checkLevelLoaded()) addLevelToExistingPlaylist(playlistName);
-        }
-        else if (tokens[1] == "dadd" || tokens[1] == "dinsert" || tokens[1] == "din")
-        {
-            if (checkLevelLoaded()) addLevelToExistingPlaylist(playlistName, true);
-        }
-        else if (tokens[1] == "remove" || tokens[1] == "rm" || tokens[1] == "delete" || tokens[1] == "del")
-        {
-            if (checkLevelLoaded()) deleteLevelFromExistingPlaylist(playlistName);
-        }
-        else if (tokens[1] == "fremove" || tokens[1] == "frm" || tokens[1] == "fdelete" || tokens[1] == "fdel")
-        {
-            if (checkLevelLoaded()) deleteLevelFromExistingPlaylist(playlistName, true);
-        }
-        else if (tokens[1] == "wipe" || tokens[1] == "clear" || tokens[1] == "clr" || tokens[1] == "empty")
-        {
-            wipePlaylist(playlistName);
-        }
-        else if (tokens[1] == "erase" || tokens[1] == "drop")
-        {
-            deletePlaylist(playlistName);
-        }
-        else if (tokens[1] == "count" || tokens[1] == "cnt")
-        {
-            countLevelsInPlaylist(playlistName);
-        }
-        else if (tokens[1] == "backup" || tokens[1] == "bu")
-        {
-            backupPlaylist(playlistName);
-        }
-        else if (tokens[1] == "shuffle" || tokens[1] == "sh")
-        {
-            toggleShuffle(playlistName);
-        }
-        else
-        {
-            int roundLength;
-            if (int.TryParse(tokens[1], out roundLength))
-            {
-                if (roundLength >= 60 && roundLength <= 86400)
-                {
-                    changeRoundLength(playlistName, roundLength);
-                }
-                else
-                {
-                    displayLog($"Round timer must be from 60 to 86400.", false);
-                }
-            }
-            else
-            {
-                Logger.LogInfo($"Unrecognized option \"{tokens[1]}\" with playlist command");
-                displayLog($"\"{tokens[1]}\" is not a playlist function.", false);
-            }
-        }
-    }
-
-    private void addNewChatMessage(string message)
-    {
-        ZeepkistChatMessage zeepkistChatMessage = new ZeepkistChatMessage();
-        zeepkistChatMessage.Message = $"<#F1E6D9><i>{message}</i></color>";
-
-        ZeepkistClient.ZeepkistNetwork.ChatMessages.Add(zeepkistChatMessage);
-        if (ZeepkistClient.ZeepkistNetwork.ChatMessages.Count > 20)
-            ZeepkistClient.ZeepkistNetwork.ChatMessages.RemoveAt(0);
-        Action<ZeepkistClient.ZeepkistChatMessage> chatMessageReceived = ZeepkistClient.ZeepkistNetwork.ChatMessageReceived;
-        if (chatMessageReceived != null)
-            chatMessageReceived(zeepkistChatMessage);
+        return chatCommand;
     }
 }
-/*
-<color=#FFDD00>/skip | /fs | /skiplevel</color>
-/skip <color=#FF8800>-- skip to the next selected level in playlist</color>
-/skip random <color=#FF8800>-- skip to a random level</color>
-/skip next <color=#FF8800>-- skip to the exact next level in playlist</color>
-/skip prev <color=#FF8800>-- skip to the previous level in playlist</color>
-/skip restart <color=#FF8800>-- restarts current level. Alternatively:</color> /restart
-/skip [integer] <color=#FF8800>-- skip to specific level in playlist</color>
-
-
-<color=#FFDD00>/gs | /gamesettings</color>
-/gs photomode on
-/gs photomode off
-/gs photomode timed [seconds] <color=#FF8800>-- enables photomode after x seconds from start of level</color>
-/gs photomode enabledfinish <color=#FF8800>-- enables photomode for players who finished at least once</color>
-
-
-/resettime <color=#FF8800>-- resets round time</color>
-/settime [seconds] <color=#FF8800>-- sets round time to x seconds</color>
-
-<color=#FFDD00>/joinmessage</color>
-/joinmessage [color] [text] <color=#FF8800>-- sets and enables join message</color>
-/joinmessage on
-/joinmessage off
-/joinmessage test <color=#FF8800>-- tests the join message, shows it to you alone</color>
-
-
-<color=#FFDD00>/servermessage</color>
-/servermessage [color] [seconds] [text] <color=#FF8800>-- sets and enables join message, will show for x seconds</color>
-/servermessage remove
-<color=#407AFF><i>Accepted colors: red, orange, yellow, blue, green, pink, purple, black, white</i></color>
-
-
-<color=#FFDD00>/vs | /voteskip</color>
-/vs on <color=#FF8800>-- enables voteskip system</color>
-/vs off <color=#FF8800>-- disables voteskip system</color>
-/vs reset <color=#FF8800>-- resets vote count</color>
-/vs % [percentage] <color=#FF8800>-- sets vote threshold to percentage</color>
-*/

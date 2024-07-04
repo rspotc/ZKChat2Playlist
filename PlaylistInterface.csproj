@@ -20,6 +20,7 @@
     <PackageReference Include="BepInEx.Core" Version="5.*" />
     <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
     <PackageReference Include="Zeepkist.GameLibs" Version="16.0.1392" />
+    <PackageReference Include="ZeepSDK" Version="1.*" />
   </ItemGroup>
   
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">

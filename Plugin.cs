@@ -1,5 +1,4 @@
 ﻿using BepInEx;
-using BepInEx.Logging;
 using HarmonyLib;
 using TMPro;
 using UnityEngine;
@@ -39,32 +38,21 @@ public class Plugin : BaseUnityPlugin
         }
     }
 
-    [HarmonyPatch(typeof(OnlineChatUI), "SendChatMessage")]
-    public class OnlineChatUI_SendChatMessage
-    {
-        private static bool Prefix(string message)
-        {
-            return !(playlistChat.isPlaylistCommand(message));
-        }
-    }
-
     [HarmonyPatch(typeof(PhotonZeepkist), "OnDisconnectedFromGame")]
     public class PhotonZeepkist_OnDisconnectedFromGame
     {
         private static void Prefix()
         {
-//            playlistChat.backupChangedPlaylists();
             playlistChat.resetBackups();
             playlistChat.setActive(false);
         }
     }
 
     [HarmonyPatch(typeof(OnlineGameplayUI), "OnOpen")]
-    public class OnlineGameplayUI_Update
+    public class OnlineGameplayUI_OnOpen
     {
         private static void Postfix(GameObject ___tooltips)
         {
-            //ManualLogSource TempLog = BepInEx.Logging.Logger.CreateLogSource("TempLog");
             GameObject commands = ___tooltips.transform.GetChild(0).gameObject;
             TextMeshProUGUI commandsText = commands.GetComponent<TextMeshProUGUI>();
             commandsText.text = playlistChat.addCommands(commandsText.text);
@@ -80,6 +68,3 @@ public class Plugin : BaseUnityPlugin
         }
     }
 }
-
-//    <PackageReference Include="Zeepkist.GameLibs" Version="16.0.1392" />
-//    <PackageReference Include="ZeepSDK" Version="1.*" />
