@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using BepInEx.Logging;
-using HarmonyLib;
 namespace ZeepSDK.ChatCommands; 
 
 public class ILocalChatCommandExtension {
@@ -17,13 +15,13 @@ public class ILocalChatCommandExtension {
 		subCommands = [];
 
 		isSubCommand = isSubCommand_;
-		if (!isSubCommand) ChatCommandApi.RegisterLocalChatCommand(prefixVal, commandVal, descriptionVal, Handle);
+		if (!isSubCommand) ChatCommandApi.RegisterLocalChatCommand(prefixVal, commandVal, "Press F1 for command help", Handle);
 	}
 
 	public void addAlias(string alias)
 	{
 		aliases.Add(alias);
-		if (!isSubCommand) ChatCommandApi.RegisterLocalChatCommand(prefixVal, alias, descriptionVal, Handle);
+		if (!isSubCommand) ChatCommandApi.RegisterLocalChatCommand(prefixVal, alias, $"Alias of {prefixVal}{commandVal}", Handle);
 	}
 
 	public bool isAlias(string aliasQuery)
@@ -53,7 +51,7 @@ public class ILocalChatCommandExtension {
 	public string repr()
 	{
 		string commandsString = "";
-		if (!isSubCommand)
+		if (!isSubCommand && (subCommands.Count > 0 || aliases.Count > 0))
 		{
 			commandsString += $"<color=#FFDD00>{prefixVal}{commandVal}";
 			foreach (string alias in aliases)

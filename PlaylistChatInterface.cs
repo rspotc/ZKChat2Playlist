@@ -59,7 +59,7 @@ public class PlaylistChatInterface
         lastUpdated = "";
     }
 
-    public string addCommands(string currentCommands) { return currentCommands + "\n\n\n" + playlistChatCommand.repr(); }
+    public string addCommands() { return playlistChatCommand.repr(); }
 
     private string isPlaylistCommand(string playlistName)
     {

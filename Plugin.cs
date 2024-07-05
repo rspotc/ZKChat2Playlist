@@ -11,6 +11,7 @@ public class Plugin : BaseUnityPlugin
 {
     private Harmony harmony;
     private static PlaylistChatInterface playlistChat;
+    private static CommandsHelpPages commandsHelp;
 
     private void Awake()
     {
@@ -18,6 +19,7 @@ public class Plugin : BaseUnityPlugin
         harmony.PatchAll();
 
         playlistChat = new PlaylistChatInterface(MyPluginInfo.PLUGIN_GUID);
+        commandsHelp = new CommandsHelpPages();
 
         // Plugin startup logic
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
@@ -48,23 +50,40 @@ public class Plugin : BaseUnityPlugin
         }
     }
 
-    [HarmonyPatch(typeof(OnlineGameplayUI), "OnOpen")]
-    public class OnlineGameplayUI_OnOpen
-    {
-        private static void Postfix(GameObject ___tooltips)
-        {
-            GameObject commands = ___tooltips.transform.GetChild(0).gameObject;
-            TextMeshProUGUI commandsText = commands.GetComponent<TextMeshProUGUI>();
-            commandsText.text = playlistChat.addCommands(commandsText.text);
-        }
-    }
-
     [HarmonyPatch(typeof(PhotonZeepkist), "OnConnectedToGame")]
     public class PhotonZeepkist_OnConnectedToGame
     {
         private static void Postfix()
         {
             playlistChat.setActive(true);
+        }
+    }
+
+    [HarmonyPatch(typeof(OnlineGameplayUI), "Awake")]
+    public class OnlineGameplayUI_Awake
+    {
+        private static void Postfix(GameObject ___tooltips)
+        {
+            GameObject commands = ___tooltips.transform.GetChild(0).gameObject;
+            TextMeshProUGUI commandsText = commands.GetComponent<TextMeshProUGUI>();
+            commandsHelp.addPage(commandsText.text);
+            commandsHelp.addPage(playlistChat.addCommands());
+
+            commandsText.text = commandsHelp.getPage();
+        }
+    }
+
+    [HarmonyPatch(typeof(OnlineGameplayUI), "Update")]
+    public class OnlineGameplayUI_Update
+    {
+        private static void Postfix(GameObject ___tooltips, bool ___showTooltip, OnlineTabLeaderboardUI ___OnlineTabLeaderboard)
+        {
+            if (___showTooltip && ___OnlineTabLeaderboard.SwitchAction.buttonDown) {
+                GameObject commands = ___tooltips.transform.GetChild(0).gameObject;
+                TextMeshProUGUI commandsText = commands.GetComponent<TextMeshProUGUI>();
+                commandsHelp.pageChange();
+                commandsText.text = commandsHelp.getPage();
+            }
         }
     }
 }
